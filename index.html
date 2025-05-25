@@ -1,0 +1,2644 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProteinChat Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* --- Global Resets and Enhanced Variables --- */
+        :root {
+            --primary-color: #14B8A6; /* Teal 500 */
+            --secondary-color: #0D9488; /* Teal 600 */
+            --accent-color: #06B6D4; /* Cyan 500 */
+            --highlight-color: #F59E0B; /* Amber 500 for emphasis */
+            
+            --bg-color-light: #F9FAFB; /* Gray 50 */
+            --text-color-light: #1F2937; /* Gray 800 */
+            --card-bg-light: rgba(255, 255, 255, 0.97); /* Increased opacity for light mode cards */
+            --border-color-light: rgba(209, 213, 219, 0.9); /* Gray 300, more standard */
+            --modal-bg-light: #FFFFFF;
+
+            --bg-color-dark: #111827; /* Gray 900 */
+            --text-color-dark: #E5E7EB; /* Gray 200 */
+            --card-bg-dark: rgba(31, 41, 55, 0.92); /* Slightly increased opacity */
+            --border-color-dark: rgba(55, 65, 81, 0.8); 
+            --modal-bg-dark: #1F2937; 
+
+            --border-radius: 10px; 
+            --border-radius-lg: 16px; 
+            --font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            
+            --neon-glow-strong: 0 0 6px var(--accent-color), 0 0 12px var(--accent-color), 0 0 18px var(--primary-color), 0 0 24px var(--primary-color);
+            --neon-glow-subtle: 0 0 4px var(--accent-color), 0 0 8px var(--primary-color);
+            --glass-blur: saturate(180%) blur(10px);
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.06);
+            --shadow-md: 0 5px 15px rgba(0,0,0,0.12);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.12), 0 5px 10px rgba(0,0,0,0.06);
+
+            /* Default to dark theme variables */
+            --bg-color: var(--bg-color-dark);
+            --text-color: var(--text-color-dark);
+            --card-bg: var(--card-bg-dark);
+            --border-color: var(--border-color-dark);
+            --modal-bg: var(--modal-bg-dark);
+        }
+
+        [data-theme="light"] {
+            --bg-color: var(--bg-color-light);
+            --text-color: var(--text-color-light);
+            --card-bg: var(--card-bg-light);
+            --border-color: var(--border-color-light);
+            --modal-bg: var(--modal-bg-light);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.4s ease, color 0.4s ease;
+            overflow-x: hidden;
+            line-height: 1.75; 
+        }
+
+        /* --- Helper Classes --- */
+        .hidden { display: none !important; }
+        .container {
+            max-width: 1280px; 
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* --- Branding --- */
+        .brand-logo-landing {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            z-index: 1001;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: color 0.3s ease;
+        }
+        [data-theme="light"] .brand-logo-landing {
+            color: var(--primary-color); 
+        }
+
+        /* --- Theme Toggle & Landing Auth Buttons --- */
+        .top-right-controls {
+            position: fixed;
+            top: 20px; 
+            right: 20px; 
+            display: flex;
+            align-items: center;
+            gap: 10px; 
+            z-index: 1001; 
+        }
+
+        .theme-toggle, .landing-auth-button {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 14px; 
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.9rem; 
+            font-weight: 600;
+            transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: var(--shadow-sm);
+        }
+        .theme-toggle:hover, .landing-auth-button:hover {
+            transform: translateY(-2px) scale(1.02); 
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        .theme-toggle { font-size: 1.2rem; padding: 8px 12px; } 
+
+        /* --- Landing Page Styles --- */
+        #landingPage {
+            min-height: 100vh;
+            position: relative;
+            z-index: 3; /* Ensure landing page content is above fixed backgrounds */
+            overflow: hidden;
+            /* Adjusted background for better light mode appearance */
+            /* Removed var(--bg-color) here; body provides the base background */
+            background: linear-gradient(135deg, rgba(var(--primary-color-rgb, 20, 184, 166), 0.08) 0%, rgba(var(--accent-color-rgb, 6, 182, 212), 0.05) 100%);
+        }
+        [data-theme="light"] #landingPage {
+             /* Removed var(--bg-color) here */
+             background: linear-gradient(135deg, rgba(var(--primary-color-rgb, 20, 184, 166), 0.1) 0%, rgba(var(--accent-color-rgb, 6, 182, 212), 0.07) 100%);
+        }
+        
+        #dnaAnimationCanvasContainer { /* Three.js DNA background */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1; /* Changed from -3 to be above body background */
+            opacity: 0.2; /* Slightly more visible */
+            pointer-events: none; /* <<< ADDED THIS LINE */
+        }
+        [data-theme="light"] #dnaAnimationCanvasContainer {
+            opacity: 0.2; /* More visible in light mode too */
+        }
+
+        #landingPage::before { /* Subtle gradient overlay */
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(var(--primary-color-rgb, 20, 184, 166), 0.12) 0%, transparent 25%),
+                radial-gradient(circle at 90% 30%, rgba(var(--accent-color-rgb, 6, 182, 212), 0.10) 0%, transparent 25%),
+                radial-gradient(circle at 50% 80%, rgba(var(--primary-color-rgb, 20, 184, 166), 0.08) 0%, transparent 30%),
+                radial-gradient(circle at 25% 70%, rgba(var(--highlight-color-rgb, 245, 158, 11), 0.06) 0%, transparent 20%);
+            animation: subtleGradientShift 40s ease-in-out infinite alternate; /* This is the gradient overlay */
+            z-index: 2; /* Changed from -2 to be above DNA animation but below landing content */
+            opacity: 0.6;
+            pointer-events: none; /* <<< ADDED THIS LINE */
+        }
+        [data-theme="light"] #landingPage::before {
+            opacity: 0.8; /* Make gradients a bit more pronounced in light mode */
+             background-image:
+                radial-gradient(circle at 10% 20%, rgba(var(--primary-color-rgb, 20, 184, 166), 0.08) 0%, transparent 30%),
+                radial-gradient(circle at 90% 30%, rgba(var(--accent-color-rgb, 6, 182, 212), 0.06) 0%, transparent 30%),
+                radial-gradient(circle at 50% 80%, rgba(var(--primary-color-rgb, 20, 184, 166), 0.05) 0%, transparent 35%),
+                radial-gradient(circle at 25% 70%, rgba(var(--highlight-color-rgb, 245, 158, 11), 0.04) 0%, transparent 25%);
+        }
+
+        @keyframes subtleGradientShift {
+            0% { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 100%; }
+            100% { background-position: 100% 100%, 0% 100%, 50% 0%, 100% 0%; }
+        }
+
+        /* CSS Protein Animation - Centered */
+        .protein-animation-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px; /* Increased size */
+            height: 280px; /* Increased size */
+            perspective: 1200px; 
+            z-index: 0; /* Relative to #landingPage, which is z-index 3. So this is fine. */
+            opacity: 0.7; /* Increased base opacity for better visibility */
+        }
+        [data-theme="light"] .protein-animation-container {
+            opacity: 0.8; /* Even more visible in light mode */
+        }
+
+        .protein-molecule {
+            width: 100%; height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: rotateMoleculeComplex 25s infinite linear; /* Slightly faster */
+        }
+
+        .atom {
+            position: absolute;
+            width: 30px; height: 30px; /* Slightly larger atoms */
+            border-radius: 50%;
+            box-shadow: var(--neon-glow-subtle);
+            animation: pulseAtom 2.5s infinite ease-in-out alternate;
+        }
+        .atom::before { 
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 50%; height: 50%; /* Smaller highlight for more depth */
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.4;
+            filter: blur(2px); /* Less blur for sharper highlight */
+        }
+        .atom1 { transform: translateZ(100px) rotateX(10deg); background: radial-gradient(circle, var(--primary-color) 30%, var(--secondary-color) 100%); } 
+        .atom2 { transform: rotateY(60deg) translateZ(100px) rotateX(30deg); background: radial-gradient(circle, var(--accent-color) 30%, var(--primary-color) 100%); animation-delay: -0.4s; }
+        .atom3 { transform: rotateY(120deg) translateZ(100px) rotateX(-15deg); background: radial-gradient(circle, var(--primary-color) 30%, var(--secondary-color) 100%); animation-delay: -0.8s; }
+        .atom4 { transform: rotateY(180deg) translateZ(100px) rotateX(5deg); background: radial-gradient(circle, var(--highlight-color) 30%, var(--accent-color) 100%); animation-delay: -1.2s; }
+        .atom5 { transform: rotateY(240deg) translateZ(100px) rotateX(-25deg); background: radial-gradient(circle, var(--primary-color) 30%, var(--secondary-color) 100%); animation-delay: -1.6s; }
+        .atom6 { transform: rotateY(300deg) translateZ(100px) rotateX(20deg); background: radial-gradient(circle, var(--accent-color) 30%, var(--primary-color) 100%); animation-delay: -2s; }
+        .atom-center { transform: translateZ(0px) scale(1.4); background: var(--highlight-color); box-shadow: var(--neon-glow-strong); animation-delay: -0.1s; } 
+        .atom-center::before { width: 40%; height: 40%; opacity: 0.6; filter: blur(4px); }
+
+        @keyframes rotateMoleculeComplex {
+            0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+            100% { transform: rotateX(360deg) rotateY(720deg) rotateZ(-360deg); }
+        }
+        @keyframes pulseAtom {
+            0% { opacity: 0.6; transform: scale(0.9) translateZ(var(--tz, 100px)); } 
+            100% { opacity: 1; transform: scale(1.1) translateZ(var(--tz, 100px)); }
+        }
+
+        .hero-section {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 3rem 1.5rem; 
+            position: relative; /* Stays relative to #landingPage */
+            background: transparent;
+        }
+
+        .hero-section h1 {
+            font-size: clamp(2.5rem, 8vw, 4.8rem); 
+            font-weight: 800; 
+            background: linear-gradient(120deg, var(--primary-color), var(--accent-color), var(--highlight-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.2rem; 
+            line-height: 1.15; 
+            text-shadow: 0 2px 10px rgba(var(--primary-color-rgb, 20, 184, 166), 0.2);
+            animation: fadeInDownLarge 1.2s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+        }
+
+        .hero-section p {
+            font-size: clamp(1rem, 4vw, 1.3rem); 
+            margin-bottom: 2.5rem; 
+            max-width: 650px; 
+            color: var(--text-color);
+            opacity: 0; 
+            animation: fadeInUpLarge 1.2s cubic-bezier(0.25, 0.8, 0.25, 1) 0.4s forwards;
+            line-height: 1.7; 
+        }
+        [data-theme="light"] .hero-section p {
+            color: var(--text-color-light); /* Ensure good contrast for text */
+            opacity: 0; /* Keep animation start state */
+        }
+
+        .cta-button {
+            padding: 16px 38px; 
+            font-size: 1.15rem; 
+            font-weight: 700; 
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.3s ease;
+            text-decoration: none;
+            box-shadow: 0 8px 25px rgba(var(--primary-color-rgb, 20, 184, 166), 0.35);
+            opacity: 0; 
+            animation: pulse 2.5s infinite, fadeInUpLarge 1s cubic-bezier(0.25, 0.8, 0.25, 1) 0.8s forwards;
+            position: relative;
+            overflow: hidden;
+        }
+        .cta-button::before { 
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: skewX(-25deg);
+            transition: left 0.7s ease;
+        }
+
+        .cta-button:hover {
+            transform: scale(1.05) translateY(-3px); 
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            box-shadow: 0 10px 28px rgba(var(--secondary-color-rgb, 13, 148, 136), 0.40); 
+        }
+        .cta-button:hover::before {
+            left: 120%;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 8px 25px rgba(var(--primary-color-rgb, 20, 184, 166), 0.35); }
+            50% { box-shadow: 0 10px 30px rgba(var(--primary-color-rgb, 20, 184, 166), 0.5); transform: scale(1.01); } 
+            100% { box-shadow: 0 8px 25px rgba(var(--primary-color-rgb, 20, 184, 166), 0.35); }
+        }
+        @keyframes fadeInDownLarge { 
+            from { opacity: 0; transform: translateY(-30px); } 
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUpLarge { 
+            from { opacity: 0; transform: translateY(30px); } 
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .content-section {
+            padding: 80px 24px; 
+            background-color: transparent; 
+            position: relative;
+            opacity: 0; 
+            transform: translateY(30px); 
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+        .content-section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .content-section:nth-child(even) { 
+            background-color: rgba(var(--primary-color-rgb, 20, 184, 166), 0.02);
+        }
+        [data-theme="light"] .content-section:nth-child(even) {
+             background-color: rgba(var(--primary-color-rgb, 20, 184, 166), 0.03); /* Slightly more visible tint for light mode */
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: clamp(2.2rem, 6vw, 3rem); 
+            margin-bottom: 50px; 
+            font-weight: 700; 
+            color: var(--primary-color);
+            position: relative;
+            padding-bottom: 12px; 
+        }
+        .section-title::after { 
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70px; 
+            height: 3px; 
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            border-radius: 2px;
+        }
+
+        .educational-cards, .features-grid, .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 30px; 
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid transparent; 
+            padding: 30px; 
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.35s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.35s ease;
+            position: relative;
+            overflow: hidden;
+        }
+         .card::before { 
+            content: "";
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            z-index: -1;
+            margin: -1px; 
+            border-radius: inherit; 
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+        .card:hover {
+            transform: translateY(-8px) scale(1.01); 
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-color); 
+        }
+        .card:hover::before {
+            opacity: 1;
+        }
+        .card h3 {
+            font-size: 1.6rem; 
+            color: var(--primary-color);
+            margin-bottom: 12px; 
+            font-weight: 700;
+        }
+        .card p {
+            font-size: 1.05rem; 
+            opacity: 0.9;
+        }
+        [data-theme="light"] .card p {
+            opacity: 1; /* Ensure readability in light mode */
+        }
+        .card svg {
+            width: 48px; height: 48px; 
+            fill: var(--primary-color);
+            margin-bottom: 18px; 
+            filter: drop-shadow(0 2px 3px rgba(var(--primary-color-rgb),0.3));
+        }
+
+        .example-tag {
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+            gap: 8px; 
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 12px 20px; 
+            border-radius: 30px; 
+            font-weight: 600;
+            font-size: 1rem; 
+            margin: 0; 
+            cursor: pointer;
+            transition: transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), background 0.3s ease;
+            box-shadow: 0 4px 10px rgba(var(--primary-color-rgb, 20, 184, 166), 0.25);
+            text-align: center;
+        }
+        .example-tag:hover {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            transform: scale(1.05) translateY(-2px); 
+            box-shadow: 0 5px 12px rgba(var(--secondary-color-rgb, 13, 148, 136), 0.30); 
+        }
+        .example-tag::before { 
+            content: '⚡️'; 
+            margin-right: 5px;
+            font-size: 1.1em;
+        }
+        
+        /* --- Stunning Modal for Login/Signup & Protein Viewer --- */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(10, 10, 20, 0.6); 
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000; 
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), visibility 0s 0.4s;
+            padding: 15px; 
+        }
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .modal-content {
+            background: var(--modal-bg);
+            padding: 30px 35px; 
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.25), 0 0 0 1px var(--border-color); 
+            width: 100%; 
+            max-width: 400px; 
+            text-align: left; 
+            position: relative;
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid var(--border-color);
+        }
+        .modal.active .modal-content {
+            transform: scale(1) translateY(0);
+        }
+        .modal-close {
+            position: absolute;
+            top: 15px; 
+            right: 15px; 
+            font-size: 1.8rem; 
+            color: var(--text-color);
+            opacity: 0.6;
+            cursor: pointer;
+            border: none; background: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            line-height: 1;
+            z-index: 1; 
+        }
+        .modal-close:hover { opacity: 1; transform: rotate(90deg) scale(1.1); }
+
+        .modal-content h2 {
+            margin-bottom: 25px; 
+            color: var(--primary-color);
+            font-size: 1.8rem; 
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+        .modal-content label {
+            display: block;
+            font-size: 0.9rem; 
+            color: var(--text-color);
+            opacity: 0.85;
+            margin-bottom: 6px; 
+            font-weight: 500;
+        }
+        .modal-content input {
+            width: 100%;
+            padding: 14px 18px; 
+            margin-bottom: 20px; 
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            font-size: 1rem; 
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+            caret-color: var(--primary-color);
+        }
+        .modal-content input::placeholder {
+            color: var(--text-color);
+            opacity: 0.5;
+        }
+        .modal-content input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb, 20, 184, 166), 0.25); 
+        }
+        .modal-content button[type="submit"], .modal-content .modal-action-button { 
+            width: 100%;
+            padding: 14px; 
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1.05rem; 
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 12px rgba(var(--primary-color-rgb, 20, 184, 166), 0.3);
+            margin-top: 8px; 
+        }
+        .modal-content button[type="submit"]:hover, .modal-content .modal-action-button:hover {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            box-shadow: 0 6px 18px rgba(var(--secondary-color-rgb, 13, 148, 136), 0.4);
+            transform: translateY(-2px);
+        }
+        .modal-content button[type="submit"]:active, .modal-content .modal-action-button:active {
+            transform: translateY(0px) scale(0.98);
+            box-shadow: 0 2px 8px rgba(var(--secondary-color-rgb, 13, 148, 136), 0.3);
+        }
+        .modal-error {
+            color: #EF4444; 
+            font-size: 0.85rem; 
+            font-weight: 500;
+            margin-top: -10px; 
+            margin-bottom: 15px; 
+            min-height: 1.2em; 
+            text-align: center;
+        }
+
+        /* Protein Viewer Modal Specifics */
+        #proteinViewerModal .modal-content {
+            max-width: 90vw; 
+            width: auto;
+            height: 85vh; 
+            display: flex;
+            flex-direction: column;
+        }
+        #proteinViewerContainer {
+            flex-grow: 1;
+            background-color: #000; 
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            position: relative; 
+            min-height: 300px; 
+        }
+        #proteinViewerStatus {
+            text-align: center;
+            padding: 10px;
+            font-style: italic;
+            font-size: 0.9rem;
+            min-height: 1.5em; /* Ensure space for messages */
+        }
+        .protein-viewer-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end; 
+            margin-top: 10px;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        .fullscreen-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: rgba(30, 30, 30, 0.7);
+            color: white;
+            border: 1px solid rgba(200,200,200,0.5);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            line-height: 38px; /* Adjust for vertical centering of &times; */
+            text-align: center;
+            cursor: pointer;
+            z-index: 2147483647; /* Max z-index */
+            transition: background-color 0.2s, transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .fullscreen-close-btn:hover {
+            background-color: rgba(0, 0, 0, 0.9);
+            transform: scale(1.1);
+        }
+
+        /* --- Chat Interface Styles --- */
+        #chatInterface {
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-color);
+            overflow: hidden; 
+        }
+
+        .sidebar {
+            width: 260px; 
+            background: var(--card-bg); 
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-right: 1px solid var(--border-color);
+            padding: 20px; 
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+            transition: background-color 0.3s ease, transform 0.3s ease; 
+            position: fixed; 
+            left: -260px; 
+            top: 0;
+            height: 100%;
+            z-index: 1000; 
+            box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+        }
+        .sidebar.open { 
+            transform: translateX(260px); 
+            z-index: 1003; 
+        }
+
+        .sidebar h2 { 
+            font-size: 1.6rem; 
+            margin-bottom: 18px; 
+            color: var(--primary-color);
+            text-align: center;
+            font-weight: 600;
+        }
+         .sidebar h3 { 
+            font-size: 1.1rem; 
+            margin-top: 18px; 
+            margin-bottom: 8px; 
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li {
+            padding: 10px 12px; 
+            margin-bottom: 6px; 
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px; 
+            font-size: 0.95rem; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sidebar-menu li:hover, .sidebar-menu li.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .sidebar-menu li svg { width: 18px; height: 18px; fill: currentColor; flex-shrink: 0;} 
+
+        .sidebar-list { 
+            list-style: none;
+            padding-left: 0;
+            max-height: 200px; 
+            overflow-y: auto;
+            margin-bottom: 18px; 
+        }
+        .sidebar-list li {
+            padding: 8px 10px; 
+            font-size: 0.9rem; 
+            border-radius: var(--border-radius);
+            margin-bottom: 4px; 
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .sidebar-list li:hover { background-color: rgba(var(--primary-color-rgb, 20, 184, 166), 0.2); }
+        [data-theme="dark"] .sidebar-list li:hover { background-color: rgba(20, 184, 166, 0.3); }
+        .sidebar-list li.active-session {
+            background-color: var(--secondary-color) !important;
+            color: white !important;
+            font-weight: 500;
+        }
+        .sidebar-list::-webkit-scrollbar { width: 5px; } 
+        .sidebar-list::-webkit-scrollbar-thumb { background: var(--secondary-color); border-radius: 3px; }
+        .sidebar-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        [data-theme="dark"] .sidebar-list::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 18px; 
+            border-top: 1px solid var(--border-color);
+        }
+        #loggedInUserDisplay {
+            font-size: 0.85rem; 
+            opacity: 0.8;
+            margin-bottom: 8px; 
+            text-align: center;
+        }
+        #logoutBtn { 
+            width: 100%;
+            padding: 8px 12px; 
+            font-size: 0.9rem; 
+            background: transparent;
+            border: 1px solid var(--secondary-color);
+            color: var(--secondary-color);
+            transition: all 0.2s ease;
+        }
+        #logoutBtn:hover {
+            background: var(--secondary-color);
+            color: white;
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
+        }
+
+        .chat-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative; 
+            overflow: hidden;
+            width: 100%; 
+        }
+
+        .chat-background-animation { 
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        .dna-strand {
+            position: absolute;
+            width: 2px; height: 80px; 
+            background: linear-gradient(var(--primary-color), var(--accent-color));
+            border-radius: 2px;
+            opacity: 0.08; /* Slightly more subtle */
+            animation: floatDNA 12s infinite ease-in-out alternate;
+        }
+        [data-theme="light"] .dna-strand {
+            opacity: 0.1; /* Adjust for light mode if needed */
+        }
+        @keyframes floatDNA {
+            from { transform: translateY(110vh) rotate(0deg) scale(0.8); }
+            to { transform: translateY(-10vh) rotate(270deg) scale(1.1); }
+        }
+
+        .chat-header {
+            padding: 15px 20px; 
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-color);
+            font-size: 1.15rem; 
+            font-weight: 500;
+            text-align: center;
+            position: relative; 
+        }
+
+        .message-list {
+            flex-grow: 1;
+            padding: 20px; 
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 18px; 
+        }
+        .message-list::-webkit-scrollbar { width: 7px; } 
+        .message-list::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 4px; }
+        .message-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        [data-theme="dark"] .message-list::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+
+        .message-item {
+            display: flex;
+            max-width: 85%; 
+            animation: slideInUp 0.4s ease-out;
+        }
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-item.user { align-self: flex-end; flex-direction: row-reverse; }
+        .message-item.ai { align-self: flex-start; }
+
+        .avatar {
+            width: 36px; height: 36px; 
+            border-radius: 50%;
+            margin: 0 10px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500; 
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .avatar.user-avatar { background-color: var(--primary-color); }
+        .avatar.ai-avatar { background-image: linear-gradient(45deg, var(--accent-color), var(--secondary-color)); }
+
+        .message-content {
+            padding: 12px 18px; 
+            border-radius: var(--border-radius);
+            position: relative;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.07);
+            line-height: 1.6;
+        }
+        .message-item.user .message-content {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-bottom-right-radius: 4px; 
+        }
+        .message-item.ai .message-content {
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            border-bottom-left-radius: 4px; 
+        }
+        .message-content strong { color: var(--primary-color); font-weight: 600; }
+        [data-theme="light"] .message-item.ai .message-content strong { color: var(--secondary-color); }
+        .message-content h4 { 
+            font-size: 1.05rem; 
+            color: var(--primary-color);
+            margin-bottom: 8px; 
+            padding-bottom: 4px; 
+            border-bottom: 1px solid var(--border-color);
+        }
+        .message-content p { margin-bottom: 6px; } 
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 6px; height: 6px; 
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            margin: 0 2px;
+            animation: typing 1.2s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.6; }
+            50% { transform: translateY(-3px) scale(1); opacity: 1; } 
+        }
+
+        .message-content pre {
+            background-color: rgba(0,0,0,0.1);
+            padding: 10px; 
+            border-radius: var(--border-radius);
+            overflow-x: auto;
+            margin: 10px 0; 
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85em; 
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid var(--border-color);
+        }
+        [data-theme="dark"] .message-content pre { background-color: rgba(0,0,0,0.2); }
+        [data-theme="light"] .message-content pre { background-color: rgba(0,0,0,0.05); }
+
+        .message-content code {
+            background-color: rgba(0,0,0,0.08);
+            padding: 2px 5px; 
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            word-break: break-all;
+            border: 1px solid var(--border-color);
+        }
+        [data-theme="dark"] .message-content code { background-color: rgba(0,0,0,0.25); }
+        [data-theme="light"] .message-content code { background-color: rgba(0,0,0,0.06); }
+
+        .message-content a {
+            color: var(--accent-color);
+            text-decoration: none; 
+            border-bottom: 1px dotted var(--accent-color); 
+            transition: color 0.2s ease, border-bottom-color 0.2s ease;
+        }
+        .message-content a:hover {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .collapsible-section {
+            margin-top: 12px; 
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            overflow: hidden; 
+        }
+        .collapsible-header {
+            cursor: pointer;
+            padding: 10px 12px; 
+            font-weight: 600; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--primary-color);
+            background-color: rgba(var(--primary-color-rgb, 20, 184, 166), 0.1);
+            transition: background-color 0.2s ease;
+        }
+        .collapsible-header:hover {
+            background-color: rgba(var(--primary-color-rgb, 20, 184, 166), 0.15);
+        }
+        [data-theme="light"] .collapsible-header {
+            background-color: rgba(var(--primary-color-rgb, 20, 184, 166), 0.08);
+        }
+        [data-theme="light"] .collapsible-header:hover {
+            background-color: rgba(var(--primary-color-rgb, 20, 184, 166), 0.12);
+        }
+        .collapsible-header::after { 
+            content: '›'; 
+            font-size: 1.4em; 
+            font-weight: bold;
+            transform: rotate(90deg);
+            transition: transform 0.3s ease;
+        }
+        .collapsible-header.open::after {
+            transform: rotate(-90deg);
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, padding 0.4s ease-out; 
+            padding: 0 12px; 
+            background-color: transparent; 
+        }
+        .collapsible-content.open {
+            max-height: 1500px; 
+            padding: 12px; 
+        }
+        .collapsible-content p, .collapsible-content ul {
+            margin-bottom: 8px; 
+        }
+        .collapsible-content ul {
+            padding-left: 18px; 
+            list-style-type: disc; 
+        }
+        .collapsible-content li { margin-bottom: 4px; } 
+
+        .copy-button, .explain-button, .view-3d-button {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 5px 10px; 
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.8em; 
+            font-weight: 500;
+            margin-top: 10px; 
+            margin-right: 6px; 
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .copy-button:hover, .explain-button:hover, .view-3d-button:hover {
+            background: var(--primary-color);
+            transform: translateY(-1px);
+        }
+        .actions-container { 
+            margin-top: 8px; 
+            padding-top: 8px; 
+            border-top: 1px solid var(--border-color);
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 6px; 
+        }
+
+        .input-area {
+            display: flex;
+            align-items: center; 
+            padding: 12px 15px; 
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-area input[type="text"] {
+            flex-grow: 1;
+            padding: 12px 15px; 
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color); 
+            color: var(--text-color);
+            font-size: 0.95rem; 
+            margin-right: 10px; 
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .input-area input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb, 20, 184, 166), 0.3); 
+        }
+
+        .input-area button {
+            padding: 10px 18px; 
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 0.95rem; 
+            font-weight: 500;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px; 
+        }
+        .input-area button:hover {
+            background-color: var(--secondary-color);
+            box-shadow: 0 2px 10px rgba(var(--secondary-color-rgb, 13, 148, 136), 0.4);
+        }
+        .input-area button svg {
+            width: 16px; height: 16px; 
+        }
+
+        .menu-toggle-button {
+            display: none; 
+            position: fixed;
+            top: 15px; 
+            left: 15px; 
+            z-index: 1002; 
+            background: var(--card-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px; 
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.4rem; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            line-height: 1;
+        }
+
+        /* --- Footer --- */
+        .app-footer {
+            background-color: var(--card-bg-dark); /* Consistent dark footer */
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            color: var(--text-color-dark); /* Consistent light text on dark footer */
+            padding: 30px 0;
+            text-align: center;
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border-color-dark);
+            line-height: 1.6;
+        }
+        [data-theme="light"] .app-footer {
+            background-color: var(--card-bg-light);
+            color: var(--text-color-light);
+            border-top: 1px solid var(--border-color-light);
+        }
+        .app-footer p {
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        .app-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        .app-footer a:hover {
+            color: var(--accent-color);
+            text-decoration: underline;
+        }
+
+        /* Responsiveness */
+        @media (max-width: 768px) {
+            .brand-logo-landing {
+                font-size: 1.5rem;
+                top: 18px;
+                left: 60px; /* Space for menu toggle - this is for chat view */
+            }
+            /* Specific fix for landing page logo on mobile */
+            #landingPage .brand-logo-landing {
+                left: 15px; /* Position normally on landing page */
+                top: 18px;
+            }
+            #landingPage .top-right-controls { /* Ensure controls don't overlap logo on small landing */
+                top: 15px;
+                right: 15px;
+            }
+
+            .sidebar {
+                /* Styles already defined for mobile: fixed, left: -260px, transform for open */
+            }
+            .sidebar.open {
+                box-shadow: 5px 0 20px rgba(0,0,0,0.2); 
+            }
+            .chat-area { 
+                /* width: 100%; is default */
+            }
+            .message-item { max-width: 90%; } 
+            
+            .hero-section h1 { font-size: clamp(2.2rem, 7vw, 3.5rem); } 
+            .hero-section p { font-size: clamp(0.95rem, 3.5vw, 1.15rem); } 
+            .cta-button { padding: 14px 32px; font-size: 1.05rem; }
+
+            .section-title { font-size: clamp(1.8rem, 5.5vw, 2.5rem); } 
+            .card h3 { font-size: 1.4rem; } 
+            .card { padding: 20px; }
+            .educational-cards, .features-grid, .examples-grid { 
+                grid-template-columns: 1fr; 
+                gap: 20px; 
+            }
+            .example-tag { padding: 10px 18px; font-size: 0.95rem;}
+
+            /* .top-right-controls already adjusted above for #landingPage context */
+            .landing-auth-button { padding: 8px 12px; font-size: 0.85rem;}
+            .theme-toggle { padding: 7px 10px; font-size: 1.1rem;}
+
+            .menu-toggle-button { /* This is for chat interface */
+                display: flex; 
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .input-area { padding: 10px 12px; }
+            .input-area input[type="text"] { padding: 10px 12px; font-size: 0.9rem; }
+            .input-area button { padding: 9px 15px; font-size: 0.9rem; }
+            .input-area button svg { width: 15px; height: 15px; }
+
+            .modal-content { padding: 25px 20px; max-width: calc(100% - 30px); } 
+            .modal-content h2 { font-size: 1.5rem; }
+            .modal-content input { padding: 12px 14px; font-size: 0.95rem; }
+            .modal-content button[type="submit"], .modal-content .modal-action-button { padding: 12px; font-size: 0.95rem; }
+            
+            #proteinViewerModal .modal-content {
+                padding: 15px;
+                height: 80vh;
+            }
+            #proteinViewerContainer {
+                margin-bottom: 10px;
+            }
+            .protein-viewer-controls {
+                flex-direction: column; 
+            }
+            .protein-viewer-controls .modal-action-button {
+                width: 100%; 
+                max-width: 100%; /* Ensure it doesn't overflow */
+            }
+
+            .protein-animation-container { width: 200px; height: 200px; opacity: 0.5; } /* Adjusted opacity for mobile */
+             [data-theme="light"] .protein-animation-container { opacity: 0.6; }
+            .atom { width: 20px; height: 20px; }
+            .atom1, .atom2, .atom3, .atom4, .atom5, .atom6 { transform: translateZ(60px); } 
+            @keyframes pulseAtom { /* Adjusted for mobile atom size */
+                0% { opacity: 0.7; transform: scale(0.95) translateZ(var(--tz, 60px)); } 
+                100% { opacity: 1; transform: scale(1.05) translateZ(var(--tz, 60px)); }
+            }
+        }
+        @media (min-width: 769px) {
+            /* Reset landing page logo position for desktop if it was changed for mobile chat view */
+            #landingPage .brand-logo-landing {
+                left: 20px;
+            }
+            .sidebar { 
+                position: relative; 
+                left: 0;
+                transform: translateX(0); 
+                box-shadow: none;
+            }
+            .menu-toggle-button { display: none; }
+        }
+
+        /* Security Warning */
+        .security-warning {
+            background-color: #FEF3C7; 
+            color: #92400E; 
+            padding: 12px 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            border: 1px solid #FCD34D; 
+            font-size: 0.9rem;
+        }
+        .security-warning strong {
+            color: #B45309; 
+            font-weight: 600;
+        }
+        [data-theme="dark"] .security-warning {
+            background-color: #3730A3; 
+            color: #E0E7FF; 
+            border-color: #4F46E5; 
+        }
+        [data-theme="dark"] .security-warning strong {
+            color: #A5B4FC; 
+        }
+
+    </style>
+</head>
+<body data-theme="dark"> 
+    <button class="menu-toggle-button" id="menuToggle"> <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path></svg>
+    </button>
+
+    <section id="landingPage">
+        <div class="brand-logo-landing">ProteinChat</div>
+        <div id="dnaAnimationCanvasContainer"></div>
+        <div class="top-right-controls">
+            <button class="landing-auth-button" id="loginBtnLanding">Sign In</button>
+            <button class="landing-auth-button" id="signupBtnLanding">Sign Up</button>
+            <div class="theme-toggle" id="themeToggle">🌓</div>
+        </div>
+
+        <div class="protein-animation-container">
+            <div class="protein-molecule">
+                <div class="atom atom-center"></div>
+                <div class="atom atom1"></div>
+                <div class="atom atom2"></div>
+                <div class="atom atom3"></div>
+                <div class="atom atom4"></div>
+                <div class="atom atom5"></div>
+                <div class="atom atom6"></div>
+            </div>
+        </div>
+
+        <header class="hero-section">
+            <h1>Explore the World of Proteins & Genes</h1>
+            <p>Unlock detailed information about any gene or protein with an intuitive, ChatGPT-style interface. Your journey into molecular biology starts here.</p>
+            <button id="startExploringBtn" class="cta-button">Start Exploring</button>
+        </header>
+
+        <section class="content-section" id="what-are-proteins">
+            <div class="container">
+                <h2 class="section-title">What are Proteins & Genes?</h2>
+                <div class="educational-cards">
+                    <div class="card">
+                        <h3>🧬 Genes: The Blueprint</h3>
+                        <p>Genes are segments of DNA that carry instructions for building and maintaining an organism. They determine traits and direct the synthesis of proteins.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🧩 Proteins: The Workers</h3>
+                        <p>Proteins are complex molecules that do most of the work in cells. They are crucial for the structure, function, and regulation of the body's tissues and organs.</p>
+                    </div>
+                    <div class="card">
+                        <h3>🔗 The Connection</h3>
+                        <p>Genes encode proteins. The sequence of a gene is translated into a sequence of amino acids, which then fold into a functional protein. It's a fundamental biological process.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section" id="examples">
+            <div class="container">
+                <h2 class="section-title">Examples to Try</h2>
+                <p style="text-align:center; max-width: 700px; margin: -40px auto 50px auto; opacity: 0.85; font-size: clamp(0.9rem, 3vw, 1.1rem);">
+                    Click on any gene/protein below to instantly dive into its details within our interactive chat interface.
+                </p>
+                <div class="examples-grid" id="examplesGrid">
+                    </div>
+            </div>
+        </section>
+
+        <section class="content-section" id="features">
+            <div class="container">
+                <h2 class="section-title">App Features</h2>
+                <div class="features-grid">
+                    <div class="card">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5A6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <h3>Instant Search</h3>
+                        <p>Quickly find detailed information for any gene or protein name or accession ID from comprehensive databases.</p>
+                    </div>
+                    <div class="card">
+                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3L2 12h3v8h14v-8h3L12 3zm5 15h-2v-6h-2v6H9V9.92L12 7.5l3 2.42V18z"/></svg>
+                         <h3>Rich Data</h3>
+                        <p>Access functional descriptions, 3D structure links (AlphaFold), disease associations, and more from UniProt.</p>
+                    </div>
+                    <div class="card">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                        <h3>AI Explanations</h3>
+                        <p>Get complex protein functions and data explained in simple, layman's terms by AI (powered by Gemini).</p>
+                    </div>
+                     <div class="card">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path></svg> <h3>Interactive 3D Viewer</h3>
+                        <p>Visualize protein structures directly within the app using data from AlphaFold DB, with clickable atom/residue info.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </section> 
+    
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeSignupModal" aria-label="Close sign up modal">&times;</button>
+            <h2>Create Your Account</h2>
+            <label for="signupUsername">Username</label>
+            <input type="text" id="signupUsername" placeholder="Choose a unique username" autocomplete="username">
+            <label for="signupPassword">Password</label>
+            <input type="password" id="signupPassword" placeholder="Create a strong password" autocomplete="new-password">
+            <label for="signupRetypePassword">Retype Password</label> <input type="password" id="signupRetypePassword" placeholder="Retype your password" autocomplete="new-password">
+            <p class="modal-error" id="signupError"></p>
+            <button type="submit" id="signupSubmit">Sign Up & Explore</button>
+        </div>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeLoginModal" aria-label="Close login modal">&times;</button>
+            <h2>Welcome Back!</h2>
+            <label for="loginUsername">Username</label>
+            <input type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+            <p class="modal-error" id="loginError"></p>
+            <button type="submit" id="loginSubmit">Sign In</button>
+        </div>
+    </div>
+
+    <div id="proteinViewerModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeProteinViewerModal" aria-label="Close protein viewer modal">&times;</button>
+            <h2 id="proteinViewerTitle">3D Protein Structure</h2>
+            <div id="proteinViewerContainer"></div>
+            <p id="proteinViewerStatus">Loading structure...</p>
+            <div class="protein-viewer-controls">
+                <button class="modal-action-button" id="fullscreenProteinViewerBtn">Fullscreen</button>
+                <button class="modal-action-button" id="closeProteinViewerModalBtnBottom">Close Viewer</button>
+            </div>
+        </div>
+    </div>
+
+    <section id="chatInterface" class="hidden">
+        <aside class="sidebar" id="chatSidebar">
+            <h2>ProteinChat</h2>
+            <ul class="sidebar-menu">
+                <li id="newChatBtn" class="active"> <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> New Chat
+                </li>
+                <li id="historyToggleBtn"> <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6a7 7 0 0 1 7-7 7 7 0 0 1 7 7 7 7 0 0 1-7 7v2a9 9 0 0 0 9-9 9 9 0 0 0-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z"/></svg> Chat History
+                </li>
+                </ul>
+
+            <div id="chatHistoryPanel" class="hidden">
+                <h3>Chat History</h3>
+                <ul class="sidebar-list" id="chatHistoryList">
+                    </ul>
+            </div>
+
+            <div class="sidebar-footer">
+                <p id="loggedInUserDisplay"></p>
+                <button id="logoutBtn" class="auth-button">Logout</button>
+            </div>
+        </aside>
+
+        <main class="chat-area">
+            <div class="chat-background-animation" id="chatBackgroundAnimation">
+                </div>
+            <div class="chat-header" id="chatHeader">Protein & Gene Information</div>
+            <div class="message-list" id="messageList">
+                </div>
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="Enter gene/protein name (e.g., TP53, P05067)">
+                <button id="sendMessageBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color: white;"><path d="M7 11L12 6L17 11M12 18V7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span>Send</span>
+                </button>
+            </div>
+        </main>
+    </section>
+
+    <footer class="app-footer">
+        <div class="container">
+            <p>&copy; 2024 ProteinChat Explorer. Developed by [Your Name/Alias Here].</p>
+            <p>Contact: <a href="mailto:your.email@example.com">your.email@example.com</a> | 
+               Powered by UniProt, AlphaFold, and Gemini AI.
+            </p>
+            <p>This application is for educational and demonstration purposes only. Not for clinical or diagnostic use.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- Constants and Global Variables ---
+        const GEMINI_API_KEY = "AIzaSyD0S2Ury7LR80sdgJfP3BoBQ4zy7nKP9gw"; // User provided
+        const UNIPROT_API_BASE = "https://rest.uniprot.org/uniprotkb/search";
+        const ALPHA_FOLD_PDB_BASE_URL = "https://alphafold.ebi.ac.uk/files/"; // AF-{id}-F1-model_v4.pdb
+
+        let currentUser = null;
+        let currentChatSessionId = null;
+        let currentChatMessages = [];
+        let proteinViewerInstance = null; // For 3Dmol.js
+        let pdbDataCache = {}; // Cache for PDB file content
+
+        const exampleGenes = ["TP53", "BRCA1", "F5", "SRY", "INS", "EGFR", "TNF", "APOE", "P05067", "CFTR", "HTT", "P01308"];
+
+        // --- DOM Elements ---
+        const themeToggle = document.getElementById('themeToggle');
+        const landingPage = document.getElementById('landingPage');
+        const chatInterface = document.getElementById('chatInterface');
+        const startExploringBtn = document.getElementById('startExploringBtn');
+
+        const signupBtnLanding = document.getElementById('signupBtnLanding');
+        const loginBtnLanding = document.getElementById('loginBtnLanding');
+        const signupModal = document.getElementById('signupModal');
+        const loginModal = document.getElementById('loginModal');
+        const closeSignupModal = document.getElementById('closeSignupModal');
+        const closeLoginModal = document.getElementById('closeLoginModal');
+        const signupSubmit = document.getElementById('signupSubmit');
+        const loginSubmit = document.getElementById('loginSubmit');
+        const signupUsernameEl = document.getElementById('signupUsername');
+        const signupPasswordEl = document.getElementById('signupPassword');
+        const signupRetypePasswordEl = document.getElementById('signupRetypePassword'); // New
+        const loginUsernameEl = document.getElementById('loginUsername');
+        const loginPasswordEl = document.getElementById('loginPassword');
+        const signupErrorEl = document.getElementById('signupError');
+        const loginErrorEl = document.getElementById('loginError');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const loggedInUserDisplay = document.getElementById('loggedInUserDisplay');
+
+        const messageList = document.getElementById('messageList');
+        const messageInput = document.getElementById('messageInput');
+        const sendMessageBtn = document.getElementById('sendMessageBtn');
+        const menuToggleBtn = document.getElementById('menuToggle');
+        const chatSidebar = document.getElementById('chatSidebar');
+        const examplesGrid = document.getElementById('examplesGrid');
+        const chatBackgroundAnimation = document.getElementById('chatBackgroundAnimation');
+        
+        const newChatBtn = document.getElementById('newChatBtn');
+        const historyToggleBtn = document.getElementById('historyToggleBtn');
+        const chatHistoryPanel = document.getElementById('chatHistoryPanel');
+        const chatHistoryList = document.getElementById('chatHistoryList');
+
+        // Protein Viewer Modal Elements
+        const proteinViewerModal = document.getElementById('proteinViewerModal');
+        const closeProteinViewerModal = document.getElementById('closeProteinViewerModal');
+        const closeProteinViewerModalBtnBottom = document.getElementById('closeProteinViewerModalBtnBottom');
+        const proteinViewerContainer = document.getElementById('proteinViewerContainer');
+        const proteinViewerTitle = document.getElementById('proteinViewerTitle');
+        const proteinViewerStatus = document.getElementById('proteinViewerStatus');
+        const fullscreenProteinViewerBtn = document.getElementById('fullscreenProteinViewerBtn');
+
+        // Three.js DNA Animation elements
+        const dnaAnimationCanvasContainer = document.getElementById('dnaAnimationCanvasContainer');
+        let dnaScene, dnaCamera, dnaRenderer, dnaMolecule;
+
+        // --- Utility: Hex to RGB and setting CSS Variables ---
+        function hexToRgb(hex) {
+            let r = 0, g = 0, b = 0;
+            if (!hex) return [0,0,0]; // Handle undefined or null hex
+            if (hex.length === 4) { 
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length === 7) { 
+                r = parseInt(hex[1] + hex[2], 16);
+                g = parseInt(hex[3] + hex[4], 16);
+                b = parseInt(hex[5] + hex[6], 16);
+            }
+            return [r, g, b];
+        }
+
+        function updateColorRGBVariables() {
+            const rootStyle = getComputedStyle(document.documentElement);
+            const primaryColorVal = rootStyle.getPropertyValue('--primary-color').trim();
+            const secondaryColorVal = rootStyle.getPropertyValue('--secondary-color').trim();
+            const accentColorVal = rootStyle.getPropertyValue('--accent-color').trim();
+            const highlightColorVal = rootStyle.getPropertyValue('--highlight-color').trim();
+
+            document.documentElement.style.setProperty('--primary-color-rgb', hexToRgb(primaryColorVal).join(', '));
+            document.documentElement.style.setProperty('--secondary-color-rgb', hexToRgb(secondaryColorVal).join(', '));
+            document.documentElement.style.setProperty('--accent-color-rgb', hexToRgb(accentColorVal).join(', '));
+            document.documentElement.style.setProperty('--highlight-color-rgb', hexToRgb(highlightColorVal).join(', '));
+        }
+
+        // --- Theme Management ---
+        function setInitialTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
+            document.body.setAttribute('data-theme', savedTheme);
+            themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌓';
+            updateColorRGBVariables();
+        }
+
+        themeToggle.addEventListener('click', () => {
+            let currentTheme = document.body.getAttribute('data-theme');
+            let newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌓';
+            updateColorRGBVariables();
+        });
+
+        // --- Landing Page Animations & Examples ---
+        function populateExamples() {
+            if (!examplesGrid) return;
+            examplesGrid.innerHTML = '';
+            exampleGenes.forEach(gene => {
+                const tag = document.createElement('div');
+                tag.classList.add('example-tag');
+                tag.textContent = gene;
+                tag.addEventListener('click', () => {
+                    if (currentUser) {
+                        showChatInterface();
+                        messageInput.value = gene;
+                        handleSendMessage();
+                    } else {
+                        loginModal.classList.add('active');
+                    }
+                });
+                examplesGrid.appendChild(tag);
+            });
+        }
+
+        function createDnaStrandsForChatBackground() {
+            if (!chatBackgroundAnimation || chatBackgroundAnimation.children.length > 0) return;
+            for (let i = 0; i < 10; i++) { 
+                const strand = document.createElement('div');
+                strand.classList.add('dna-strand');
+                strand.style.left = `${Math.random() * 100}%`;
+                strand.style.animationDelay = `${Math.random() * 12}s`;
+                strand.style.animationDuration = `${8 + Math.random() * 10}s`;
+                chatBackgroundAnimation.appendChild(strand);
+            }
+        }
+        
+        function revealSections() {
+            const sections = document.querySelectorAll('.content-section');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target); 
+                    }
+                });
+            }, { threshold: 0.1 }); 
+
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+        }
+
+        // --- Three.js DNA Animation for Landing Page ---
+        function initDnaAnimation() {
+            if (!dnaAnimationCanvasContainer || !THREE || dnaRenderer) return; 
+
+            dnaScene = new THREE.Scene();
+            dnaCamera = new THREE.PerspectiveCamera(75, dnaAnimationCanvasContainer.offsetWidth / dnaAnimationCanvasContainer.offsetHeight, 0.1, 1000);
+            dnaRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            dnaRenderer.setSize(dnaAnimationCanvasContainer.offsetWidth, dnaAnimationCanvasContainer.offsetHeight);
+            dnaAnimationCanvasContainer.innerHTML = ''; 
+            dnaAnimationCanvasContainer.appendChild(dnaRenderer.domElement);
+
+            dnaMolecule = new THREE.Group();
+
+            const radius = 2;
+            const numSegments = 20;
+            const segmentHeight = 0.5;
+            const turns = 3;
+
+            const colors = [0x14B8A6, 0x06B6D4, 0xF59E0B]; 
+
+            for (let i = 0; i < numSegments * turns; i++) {
+                const y = (i - (numSegments * turns) / 2) * segmentHeight;
+                const angle = (i / numSegments) * Math.PI * 2;
+
+                const sphereGeo1 = new THREE.SphereGeometry(0.2, 16, 16);
+                const sphereMat1 = new THREE.MeshPhongMaterial({ color: colors[i % 3], emissive: colors[i % 3], emissiveIntensity: 0.3 });
+                const sphere1 = new THREE.Mesh(sphereGeo1, sphereMat1);
+                sphere1.position.set(radius * Math.cos(angle), y, radius * Math.sin(angle));
+                dnaMolecule.add(sphere1);
+
+                const sphere2 = sphere1.clone();
+                sphere2.position.set(radius * Math.cos(angle + Math.PI), y, radius * Math.sin(angle + Math.PI));
+                dnaMolecule.add(sphere2);
+
+                if (i % 2 === 0) { 
+                    const rungGeo = new THREE.CylinderGeometry(0.08, 0.08, radius * 2, 8);
+                    const rungMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa, emissive: 0x333333, emissiveIntensity: 0.2 });
+                    const rung = new THREE.Mesh(rungGeo, rungMat);
+                    rung.position.set(0, y, 0);
+                    rung.rotation.z = Math.PI / 2;
+                    rung.quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0), angle + Math.PI / 2);
+                    dnaMolecule.add(rung);
+                }
+            }
+            dnaScene.add(dnaMolecule);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            dnaScene.add(ambientLight);
+            const pointLight = new THREE.PointLight(0xffffff, 0.8);
+            pointLight.position.set(5, 10, 5);
+            dnaScene.add(pointLight);
+
+            dnaCamera.position.z = 7;
+            dnaCamera.position.y = 0;
+
+            animateDna();
+        }
+
+        function animateDna() {
+            if (!dnaRenderer) return; 
+            requestAnimationFrame(animateDna);
+            dnaMolecule.rotation.y += 0.003;
+            dnaMolecule.rotation.x += 0.001;
+            dnaRenderer.render(dnaScene, dnaCamera);
+        }
+
+        function onWindowResizeDna() {
+            if (!dnaCamera || !dnaRenderer || !dnaAnimationCanvasContainer) return;
+            const containerWidth = dnaAnimationCanvasContainer.offsetWidth;
+            const containerHeight = dnaAnimationCanvasContainer.offsetHeight;
+            if (containerWidth > 0 && containerHeight > 0) {
+                dnaCamera.aspect = containerWidth / containerHeight;
+                dnaCamera.updateProjectionMatrix();
+                dnaRenderer.setSize(containerWidth, containerHeight);
+            }
+        }
+        window.addEventListener('resize', onWindowResizeDna, false);
+
+        // --- Authentication (Local Storage Based - INSECURE DEMO) ---
+        function showModal(modal) { modal.classList.add('active'); }
+        function closeModal(modal) { modal.classList.remove('active'); }
+
+        if(signupBtnLanding) signupBtnLanding.addEventListener('click', () => showModal(signupModal));
+        if(loginBtnLanding) loginBtnLanding.addEventListener('click', () => showModal(loginModal));
+        if(closeSignupModal) closeSignupModal.addEventListener('click', () => closeModal(signupModal));
+        if(closeLoginModal) closeLoginModal.addEventListener('click', () => closeModal(loginModal));
+        
+        if(closeProteinViewerModal) closeProteinViewerModal.addEventListener('click', () => closeModal(proteinViewerModal));
+        if(closeProteinViewerModalBtnBottom) closeProteinViewerModalBtnBottom.addEventListener('click', () => closeModal(proteinViewerModal));
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (signupModal.classList.contains('active')) closeModal(signupModal);
+                if (loginModal.classList.contains('active')) closeModal(loginModal);
+                if (proteinViewerModal.classList.contains('active')) {
+                     if (document.fullscreenElement && proteinViewerContainer.contains(document.fullscreenElement)) {
+                        // Allow Esc to exit fullscreen first if the viewer container is fullscreen
+                     } else {
+                         closeModal(proteinViewerModal);
+                     }
+                }
+            }
+        });
+
+        if(signupSubmit) signupSubmit.addEventListener('click', () => {
+            const username = signupUsernameEl.value.trim();
+            const password = signupPasswordEl.value;
+            const retypePassword = signupRetypePasswordEl.value; // New
+            signupErrorEl.textContent = '';
+
+            if (!username || !password || !retypePassword) {
+                signupErrorEl.textContent = 'All fields are required.';
+                return;
+            }
+            if (password.length < 6) {
+                signupErrorEl.textContent = 'Password must be at least 6 characters.';
+                return;
+            }
+            if (password !== retypePassword) { // New check
+                signupErrorEl.textContent = 'Passwords do not match.';
+                return;
+            }
+            if (localStorage.getItem(`user_${username}`)) {
+                signupErrorEl.textContent = 'Username already exists.';
+                return;
+            }
+            // Storing password directly is insecure; this is for demo only.
+            localStorage.setItem(`user_${username}`, JSON.stringify({ username, password })); 
+            signupErrorEl.textContent = 'Signup successful! Please login.';
+            signupErrorEl.style.color = 'var(--primary-color)';
+            setTimeout(() => {
+                closeModal(signupModal);
+                showModal(loginModal); 
+                loginUsernameEl.value = username; 
+                loginPasswordEl.focus();
+                signupErrorEl.textContent = ''; 
+                signupErrorEl.style.color = ''; 
+                signupPasswordEl.value = ''; // Clear password fields
+                signupRetypePasswordEl.value = '';
+            }, 1500);
+        });
+
+        if(loginSubmit) loginSubmit.addEventListener('click', () => {
+            const username = loginUsernameEl.value.trim();
+            const password = loginPasswordEl.value;
+            loginErrorEl.textContent = '';
+
+            if (!username || !password) {
+                loginErrorEl.textContent = 'Username and password are required.';
+                return;
+            }
+            const userDataString = localStorage.getItem(`user_${username}`);
+            if (!userDataString) {
+                loginErrorEl.textContent = 'User not found.';
+                return;
+            }
+            const userData = JSON.parse(userDataString);
+            if (userData.password !== password) { 
+                loginErrorEl.textContent = 'Incorrect password.';
+                return;
+            }
+            currentUser = username;
+            localStorage.setItem('currentUser', username); 
+            closeModal(loginModal);
+            showChatInterface(true); // Pass true for fresh login
+        });
+
+        if(logoutBtn) logoutBtn.addEventListener('click', () => {
+            if (proteinViewerModal.classList.contains('active')) {
+                closeModal(proteinViewerModal);
+                if (document.fullscreenElement && proteinViewerContainer.contains(document.fullscreenElement)) {
+                    document.exitFullscreen();
+                }
+            }
+
+            const userToClear = currentUser;
+            currentUser = null;
+            currentChatSessionId = null;
+            currentChatMessages = [];
+            pdbDataCache = {}; // Clear PDB cache on logout
+            localStorage.removeItem('currentUser');
+            if (userToClear) {
+                 localStorage.removeItem(`currentSessionId_${userToClear}`);
+            }
+            showLandingPage();
+            if(loggedInUserDisplay) loggedInUserDisplay.textContent = '';
+            messageList.innerHTML = ''; 
+            if (chatSidebar.classList.contains('open')) { 
+                chatSidebar.classList.remove('open');
+            }
+        });
+
+        function checkLoggedInUser() {
+            const user = localStorage.getItem('currentUser');
+            if (user) {
+                currentUser = user;
+                showChatInterface(false); // Pass false, not a fresh login
+            } else {
+                showLandingPage();
+            }
+        }
+
+        // --- Page Navigation ---
+        function showLandingPage() {
+            landingPage.classList.remove('hidden');
+            chatInterface.classList.add('hidden');
+            menuToggleBtn.style.display = 'none'; 
+            document.body.style.overflowY = 'auto'; // Allow scroll on landing
+            revealSections(); 
+            if (typeof initDnaAnimation === 'function' && !dnaRenderer) { 
+                initDnaAnimation();
+            }
+        }
+
+        function showChatInterface(isFreshLogin = false) {
+            landingPage.classList.add('hidden');
+            chatInterface.classList.remove('hidden');
+            if (window.innerWidth <= 768) {
+                menuToggleBtn.style.display = 'flex'; 
+            } else {
+                menuToggleBtn.style.display = 'none';
+            }
+            document.body.style.overflowY = 'hidden'; // Prevent scroll on chat
+            if(loggedInUserDisplay) loggedInUserDisplay.textContent = `User: ${currentUser}`;
+            
+            loadCurrentOrDefaultSession(); 
+            populateChatHistorySidebar();
+            createDnaStrandsForChatBackground(); 
+
+            if (isFreshLogin) {
+                const warningHTML = `
+                    <div class="security-warning">
+                        <p><strong>Security Notice:</strong> This app uses browser local storage for user data, which is <strong>NOT SECURE</strong> for sensitive information or production use. 
+                        Do not use real passwords. This is for demonstration purposes only.</p>
+                    </div>
+                    <p>Welcome, ${currentUser}! Enter a gene or protein name (e.g., TP53) or an accession ID (e.g., P05067) to start exploring.</p>
+                `;
+                // Add warning only if it's not the very first message or if the first message isn't already the warning
+                if (currentChatMessages.length === 0 || (currentChatMessages.length > 0 && !currentChatMessages[0].message.includes("Security Notice"))) {
+                     currentChatMessages.unshift({ sender: 'ai', message: warningHTML, isHTML: true, timestamp: new Date().toISOString() });
+                     messageList.innerHTML = ''; // Clear and re-render
+                     currentChatMessages.forEach(msg => _renderMessageToUI(msg.sender, msg.message, msg.isHTML, msg.timestamp, msg.alphafoldId, msg.proteinName));
+                     saveCurrentSessionMessages();
+                } else if (!currentChatMessages.some(msg => msg.message.includes("Security Notice"))) {
+                    // This case might be redundant with the above, but ensures warning is added if somehow missed.
+                    _renderMessageToUI('ai', warningHTML, true); // Render it if not already there
+                }
+            }
+            if (window.innerWidth <= 768 && chatSidebar.classList.contains('open')) {
+                chatSidebar.classList.remove('open');
+            }
+        }
+
+        if(startExploringBtn) startExploringBtn.addEventListener('click', () => {
+            if (currentUser) {
+                showChatInterface();
+            } else {
+                showModal(loginModal); 
+            }
+        });
+
+        // --- Chat Functionality ---
+        function _renderMessageToUI(sender, message, isHTML = false, timestamp = null, alphafoldId = null, proteinName = null) {
+            const messageItem = document.createElement('div');
+            messageItem.classList.add('message-item', sender);
+
+            const avatar = document.createElement('div');
+            avatar.classList.add('avatar', sender === 'user' ? 'user-avatar' : 'ai-avatar');
+            avatar.textContent = sender === 'user' ? (currentUser ? currentUser.charAt(0).toUpperCase() : 'U') : 'AI';
+
+            const messageContentDiv = document.createElement('div');
+            messageContentDiv.classList.add('message-content');
+
+            if (isHTML) {
+                messageContentDiv.innerHTML = message;
+            } else {
+                messageContentDiv.textContent = message;
+            }
+            
+            messageItem.appendChild(avatar);
+            messageItem.appendChild(messageContentDiv);
+            messageList.appendChild(messageItem);
+            
+            if (sender === 'ai' && message.trim() !== '' && !message.includes("typing-indicator")) {
+                if (!message.includes("I couldn’t find any data") && 
+                    !message.includes("An error occurred") && 
+                    !message.includes("Welcome!") && 
+                    !message.includes("Security Notice") &&
+                    !message.includes("New chat started.")) {
+
+                    const actionsContainer = document.createElement('div');
+                    actionsContainer.classList.add('actions-container');
+
+                    const copyBtn = document.createElement('button');
+                    copyBtn.classList.add('copy-button');
+                    copyBtn.textContent = 'Copy Text';
+                    copyBtn.onclick = () => copyToClipboard(messageContentDiv.innerText); 
+                    actionsContainer.appendChild(copyBtn);
+
+                    if (message.includes("Protein Details") || message.includes("Full Name:")) {
+                        const explainBtn = document.createElement('button');
+                        explainBtn.classList.add('explain-button');
+                        explainBtn.textContent = 'Explain Simply (AI)';
+                        explainBtn.onclick = () => getSimpleExplanation(messageContentDiv.innerText);
+                        actionsContainer.appendChild(explainBtn);
+                    }
+
+                    if (alphafoldId) {
+                        const view3DBtn = document.createElement('button');
+                        view3DBtn.classList.add('view-3d-button');
+                        view3DBtn.textContent = 'View 3D Structure';
+                        view3DBtn.onclick = () => showProteinStructure(alphafoldId, proteinName || alphafoldId);
+                        actionsContainer.appendChild(view3DBtn);
+                    }
+                    if (actionsContainer.hasChildNodes()) { 
+                        messageContentDiv.appendChild(actionsContainer);
+                    }
+                }
+            }
+            initializeCollapsibles(messageContentDiv);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+        
+        function addMessageToChat(sender, message, isHTML = false, alphafoldId = null, proteinName = null) {
+            const timestamp = new Date().toISOString();
+            // Avoid adding duplicate "New chat started" or "Security Notice" if they are already the last message from AI
+            if (sender === 'ai' && currentChatMessages.length > 0) {
+                const lastAiMessage = currentChatMessages.filter(m => m.sender === 'ai').pop();
+                if (lastAiMessage && lastAiMessage.message === message && lastAiMessage.isHTML === isHTML) {
+                    if (message.includes("New chat started.") || message.includes("Security Notice")) {
+                        // Don't add if it's an exact duplicate of the last AI message of this type
+                        return;
+                    }
+                }
+            }
+
+            currentChatMessages.push({ sender, message, isHTML, timestamp, alphafoldId, proteinName });
+            _renderMessageToUI(sender, message, isHTML, timestamp, alphafoldId, proteinName);
+            saveCurrentSessionMessages(); 
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const activeElement = document.activeElement;
+                if (activeElement && (activeElement.classList.contains('copy-button') || activeElement.classList.contains('explain-button') || activeElement.classList.contains('view-3d-button'))) {
+                    const originalText = activeElement.textContent;
+                    activeElement.textContent = 'Copied!';
+                    setTimeout(() => { activeElement.textContent = originalText; }, 1500);
+                } else {
+                    let tempMsg = document.createElement('div');
+                    tempMsg.textContent = 'Copied to clipboard!';
+                    tempMsg.style.position = 'fixed';
+                    tempMsg.style.bottom = '20px';
+                    tempMsg.style.left = '50%';
+                    tempMsg.style.transform = 'translateX(-50%)';
+                    tempMsg.style.background = 'var(--primary-color)';
+                    tempMsg.style.color = 'white';
+                    tempMsg.style.padding = '10px 20px';
+                    tempMsg.style.borderRadius = 'var(--border-radius)';
+                    tempMsg.style.zIndex = '2000'; 
+                    document.body.appendChild(tempMsg);
+                    setTimeout(() => { tempMsg.remove(); }, 2000);
+                }
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                 // Fallback for browsers that might not support navigator.clipboard in iframes or secure contexts
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed"; // Prevent scrolling to bottom
+                textArea.style.top = "0";
+                textArea.style.left = "0";
+                textArea.style.width = "2em";
+                textArea.style.height = "2em";
+                textArea.style.padding = "0";
+                textArea.style.border = "none";
+                textArea.style.outline = "none";
+                textArea.style.boxShadow = "none";
+                textArea.style.background = "transparent";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    // Visual feedback as above
+                     const activeElement = document.activeElement;
+                     if (activeElement && (activeElement.classList.contains('copy-button') || activeElement.classList.contains('explain-button') || activeElement.classList.contains('view-3d-button'))) {
+                         const originalText = activeElement.textContent;
+                         activeElement.textContent = 'Copied!';
+                         setTimeout(() => { activeElement.textContent = originalText; }, 1500);
+                     } else {
+                        // General feedback
+                        let tempMsg = document.createElement('div');
+                        tempMsg.textContent = 'Copied to clipboard!';
+                        tempMsg.style.position = 'fixed'; tempMsg.style.bottom = '20px'; tempMsg.style.left = '50%'; tempMsg.style.transform = 'translateX(-50%)';
+                        tempMsg.style.background = 'var(--primary-color)'; tempMsg.style.color = 'white'; tempMsg.style.padding = '10px 20px'; tempMsg.style.borderRadius = 'var(--border-radius)'; tempMsg.style.zIndex = '2000';
+                        document.body.appendChild(tempMsg);
+                        setTimeout(() => { tempMsg.remove(); }, 2000);
+                     }
+                } catch (execErr) {
+                    console.error('Fallback copy failed:', execErr);
+                    // Avoid alert()
+                    let tempMsg = document.createElement('div');
+                    tempMsg.textContent = 'Failed to copy text.';
+                    tempMsg.style.position = 'fixed'; tempMsg.style.bottom = '20px'; tempMsg.style.left = '50%'; tempMsg.style.transform = 'translateX(-50%)';
+                    tempMsg.style.background = '#EF4444'; tempMsg.style.color = 'white'; tempMsg.style.padding = '10px 20px'; tempMsg.style.borderRadius = 'var(--border-radius)'; tempMsg.style.zIndex = '2000';
+                    document.body.appendChild(tempMsg);
+                    setTimeout(() => { tempMsg.remove(); }, 2000);
+                }
+                document.body.removeChild(textArea);
+            });
+        }
+
+        function showTypingIndicator() {
+            const typingMessage = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+            _renderMessageToUI('ai', typingMessage, true); 
+        }
+
+        function removeTypingIndicator() {
+            const indicators = messageList.querySelectorAll('.typing-indicator');
+            if (indicators.length > 0) {
+                indicators[indicators.length -1].closest('.message-item').remove();
+            }
+        }
+
+        async function handleSendMessage() {
+            const query = messageInput.value.trim();
+            if (!query) return;
+
+            addMessageToChat('user', query);
+            messageInput.value = '';
+            showTypingIndicator();
+
+            if (!currentChatSessionId) { // Create new session if one doesn't exist
+                const allSessions = getAllSessionsForCurrentUser();
+                currentChatSessionId = Date.now().toString();
+                localStorage.setItem(`currentSessionId_${currentUser}`, currentChatSessionId);
+                
+                const firstUserMessage = currentChatMessages.find(m => m.sender === 'user');
+                const sessionNameQuery = firstUserMessage ? firstUserMessage.message : query;
+                const sessionName = `Chat: ${sessionNameQuery.substring(0, 20)}${sessionNameQuery.length > 20 ? "..." : ""} (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
+                
+                const newSession = {
+                    sessionId: currentChatSessionId,
+                    sessionName: sessionName,
+                    lastActivity: Date.now(),
+                    messages: [...currentChatMessages] // Include the user message that triggered session creation
+                };
+                allSessions.push(newSession);
+                localStorage.setItem(`allUserSessions_${currentUser}`, JSON.stringify(allSessions));
+                populateChatHistorySidebar(); 
+            } else {
+                // Update session name if it's a generic "New Chat" and this is the first user message
+                const allSessions = getAllSessionsForCurrentUser();
+                const sessionIndex = allSessions.findIndex(s => s.sessionId === currentChatSessionId);
+                if (sessionIndex > -1 && allSessions[sessionIndex].sessionName.startsWith("New Chat (") && currentChatMessages.filter(m => m.sender === 'user').length === 1) {
+                     const sessionNameQuery = query;
+                     allSessions[sessionIndex].sessionName = `Chat: ${sessionNameQuery.substring(0, 20)}${sessionNameQuery.length > 20 ? "..." : ""} (${new Date(allSessions[sessionIndex].lastActivity).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
+                     localStorage.setItem(`allUserSessions_${currentUser}`, JSON.stringify(allSessions));
+                     populateChatHistorySidebar();
+                }
+            }
+
+            try {
+                const searchQuery = `query=${encodeURIComponent(query)} AND reviewed:true`;
+                const fieldsToFetch = "accession,id,protein_name,gene_names,organism_name,cc_function,ft_domain,xref_alphafolddb,xref_drugbank,xref_disgenet,sequence_version,length";
+                const fullUrl = `${UNIPROT_API_BASE}?${searchQuery}&format=json&size=1&fields=${fieldsToFetch}`;
+                
+                const response = await fetch(fullUrl, { headers: { 'Accept': 'application/json' } });
+                const responseText = await response.text(); 
+
+                if (!response.ok) {
+                    let errorMsg = `UniProt API error (${response.status}): ${response.statusText}.`;
+                    try {
+                        const errorJson = JSON.parse(responseText);
+                        if (errorJson && errorJson.messages && errorJson.messages.length > 0) {
+                            errorMsg += ` Details: ${errorJson.messages.join('; ')}`;
+                        } else {
+                             errorMsg += ` Response: ${responseText.substring(0, 200)}...`;
+                        }
+                    } catch (e) { errorMsg += ` Raw Response: ${responseText.substring(0, 200)}...`; }
+                    throw new Error(errorMsg);
+                }
+
+                let data;
+                try { data = JSON.parse(responseText); } 
+                catch (parseError) {
+                    console.error("Failed to parse UniProt JSON response:", parseError, "Raw response:", responseText);
+                    throw new Error(`Error parsing data from UniProt for "${query}". Server sent non-JSON response.`);
+                }
+
+                removeTypingIndicator();
+
+                if (data.results && data.results.length > 0) {
+                    const protein = data.results[0];
+                    const alphafoldDBRef = protein.uniProtKBCrossReferences?.find(db => db.database === "AlphaFoldDB");
+                    const alphafoldId = alphafoldDBRef?.id || protein.primaryAccession; 
+                    const proteinName = protein.proteinDescription?.recommendedName?.fullName?.value || protein.uniProtkbId || query;
+
+                    const formattedData = formatProteinData(protein, query);
+                    addMessageToChat('ai', formattedData, true, alphafoldId, proteinName);
+                } else {
+                    addMessageToChat('ai', `I couldn’t find any reviewed data for "${query}". Please check the spelling or try an official gene/protein identifier (e.g., TP53, P05067).`);
+                }
+            } catch (error) {
+                console.error("Error during UniProt fetch or processing:", error);
+                removeTypingIndicator();
+                addMessageToChat('ai', `An error occurred while fetching data for "${query}". Please try again. Details: ${error.message}`);
+            }
+        }
+
+        function formatProteinData(protein, originalQuery) {
+            let html = `<h4>Results for: ${originalQuery.toUpperCase()}</h4>`;
+
+            const recommendedName = protein.proteinDescription?.recommendedName?.fullName?.value || protein.proteinName?.recommendedName?.fullName?.value; 
+            const geneInfo = protein.genes;
+            const organism = protein.organism;
+            const cc_functions = protein.comments?.filter(c => c.commentType === "FUNCTION").flatMap(c => c.texts?.map(t => t.value) || []);
+
+            const alphafoldDBRef = protein.uniProtKBCrossReferences?.find(db => db.database === "AlphaFoldDB");
+            const drugAssociations = protein.uniProtKBCrossReferences?.filter(db => db.database === "DrugBank");
+            const diseaseAssociations = protein.uniProtKBCrossReferences?.filter(db => db.database === "DisGeNET" || db.database === "MIM" || db.database === "Orphanet");
+            
+            html += `<div class="collapsible-section">`;
+            html += `<div class="collapsible-header open"><strong>Protein Details</strong></div>`; 
+            html += `<div class="collapsible-content open">`; 
+            if (recommendedName) html += `<p><strong>Full Name:</strong> ${recommendedName}</p>`;
+            else if (protein.proteinDescription?.submissionNames?.[0]?.fullName?.value) html += `<p><strong>Submitted Name:</strong> ${protein.proteinDescription.submissionNames[0].fullName.value}</p>`;
+            
+            if (protein.primaryAccession) html += `<p><strong>Accession ID:</strong> <a href="https://www.uniprot.org/uniprotkb/${protein.primaryAccession}/entry" target="_blank" rel="noopener noreferrer">${protein.primaryAccession}</a></p>`;
+            if (protein.uniProtkbId) html += `<p><strong>UniProt ID:</strong> ${protein.uniProtkbId}</p>`;
+            if (protein.sequence?.length) html += `<p><strong>Length:</strong> ${protein.sequence.length} aa</p>`;
+            if (protein.sequence?.version) html += `<p><strong>Sequence Version:</strong> ${protein.sequence.version}</p>`;
+
+            if (organism?.scientificName) html += `<p><strong>Organism:</strong> <em>${organism.scientificName}</em> ${organism.commonName ? '(' + organism.commonName + ')' : ''}</p>`;
+            
+            if (geneInfo && geneInfo.length > 0) {
+                const geneNames = geneInfo.map(g => g.geneName?.value).filter(Boolean).join(', ');
+                const olfNames = geneInfo.flatMap(g => g.orfNames?.map(orf => orf.value) || []).filter(Boolean).join(', ');
+                if (geneNames) html += `<p><strong>Gene Name(s):</strong> ${geneNames}</p>`;
+                if (olfNames) html += `<p><strong>ORF Name(s):</strong> ${olfNames}</p>`;
+            }
+            html += `</div></div>`; 
+
+            if (cc_functions && cc_functions.length > 0) {
+                html += `<div class="collapsible-section">`;
+                html += `<div class="collapsible-header"><strong>Functional Description</strong></div>`;
+                html += `<div class="collapsible-content"><p>${cc_functions.join(' ')}</p></div></div>`;
+            }
+
+            const alphaFoldIdForLink = alphafoldDBRef?.id || protein.primaryAccession;
+            if (alphaFoldIdForLink) {
+                html += `<div class="collapsible-section">`;
+                html += `<div class="collapsible-header"><strong>3D Structure (AlphaFold)</strong></div>`;
+                html += `<div class="collapsible-content">`;
+                html += `<p>A "View 3D Structure" button should appear below if an AlphaFold ID (${alphaFoldIdForLink}) is available. You can also visit <a href="https://alphafold.ebi.ac.uk/entry/${alphaFoldIdForLink}" target="_blank" rel="noopener noreferrer">AlphaFold DB for ${alphaFoldIdForLink}</a> directly.</p>`;
+                html += `</div></div>`;
+            }
+
+            if (protein.features && protein.features.length > 0) {
+                const domainFeatures = protein.features.filter(ft => ft.type === 'Domain' && ft.description);
+                if (domainFeatures.length > 0) {
+                    html += `<div class="collapsible-section">`;
+                    html += `<div class="collapsible-header"><strong>Domains</strong></div>`;
+                    html += `<div class="collapsible-content"><ul>`;
+                    domainFeatures.forEach(dom => {
+                        html += `<li>${dom.description} (${dom.location.start.value}-${dom.location.end.value})</li>`;
+                    });
+                    html += `</ul></div></div>`; 
+                }
+            }
+
+            if (drugAssociations && drugAssociations.length > 0) {
+                html += `<div class="collapsible-section">`;
+                html += `<div class="collapsible-header"><strong>Drug Associations (DrugBank)</strong></div>`;
+                html += `<div class="collapsible-content"><ul>`;
+                drugAssociations.forEach(drug => {
+                     html += `<li><a href="https://go.drugbank.com/drugs/${drug.id}" target="_blank" rel="noopener noreferrer">${drug.properties?.find(p => p.key === "DrugName")?.value || drug.id}</a> (${drug.id})</li>`;
+                });
+                html += `</ul></div></div>`; 
+            }
+
+            if (diseaseAssociations && diseaseAssociations.length > 0) {
+                html += `<div class="collapsible-section">`;
+                html += `<div class="collapsible-header"><strong>Disease Associations</strong></div>`;
+                html += `<div class="collapsible-content"><ul>`;
+                diseaseAssociations.forEach(disease => {
+                    let name = disease.properties?.find(p=>p.key === "DiseaseName")?.value || disease.id;
+                    let url;
+                    if (disease.database === "MIM") url = `https://www.omim.org/entry/${disease.id}`;
+                    else if (disease.database === "Orphanet") url = `https://www.orpha.net/consor/cgi-bin/OC_Exp.php?lng=EN&Expert=${disease.id.replace("Orphanet:", "")}`;
+                    else if (disease.database === "DisGeNET") url = `https://www.disgenet.org/browser/0/1/0/${disease.id}/`;
+                    else url = `https://www.google.com/search?q=${encodeURIComponent(name + " disease")}`; 
+                    html += `<li><a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a> (Source: ${disease.database})</li>`;
+                });
+                html += `</ul></div></div>`; 
+            }
+            return html;
+        }
+
+        function initializeCollapsibles(parentElement) {
+            const headers = parentElement.querySelectorAll('.collapsible-header');
+            headers.forEach(header => {
+                if (header.dataset.collapsibleInitialized) return;
+                header.dataset.collapsibleInitialized = 'true';
+
+                const content = header.nextElementSibling;
+                if (header.classList.contains('open') && content) { 
+                     content.classList.add('open'); 
+                     content.style.maxHeight = content.scrollHeight + "px";
+                     content.style.paddingTop = "12px"; 
+                     content.style.paddingBottom = "12px";
+                }
+
+                header.addEventListener('click', () => {
+                    header.classList.toggle('open');
+                    if (content) {
+                        content.classList.toggle('open');
+                        if (content.style.maxHeight && content.style.maxHeight !== "0px") {
+                            content.style.maxHeight = "0px";
+                            content.style.paddingTop = "0px"; 
+                            content.style.paddingBottom = "0px";
+                        } else {
+                            content.style.paddingTop = "12px"; 
+                            content.style.paddingBottom = "12px";
+                            content.style.maxHeight = content.scrollHeight + "px";
+                        }
+                    }
+                });
+            });
+        }
+
+        async function getSimpleExplanation(technicalText) {
+            addMessageToChat('user', `Explain this in simple terms: "${technicalText.substring(0,100).replace(/\n/g, ' ').trim()}..."`);
+            showTypingIndicator();
+
+           const prompt = `
+You are a friendly biology explainer. Your job is to take the technical information below about a protein and turn it into a super simple, clear, and easy-to-understand explanation for someone with no science background at all.
+
+Please follow these instructions:
+
+- Imagine you’re explaining this to a curious teenager or someone who has never studied biology.
+- Start by describing what the protein **mainly does**—its job or function in the body.
+- Then explain **why it's important** or how it helps keep us healthy.
+- Use **real-life analogies or comparisons** (e.g., "like a delivery truck" or "like a security guard") to make it easy to picture.
+- Avoid all technical terms or explain them like you're telling a story.
+- Keep the explanation **short, clear, and friendly**—like a casual conversation.
+- provide key info short points in bullet points.
+just with - infr9nt of the sentence,dont use *
+Technical Information: "${technicalText}"
+
+Now give a **super simple explanation** of what this protein does and why it matters:
+`;
+
+            if (GEMINI_API_KEY === "YOUR_GEMINI_API_KEY" || !GEMINI_API_KEY) { 
+                removeTypingIndicator();
+                addMessageToChat('ai', "Sorry, the AI explanation feature is not configured. A valid Gemini API key is needed.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.5, maxOutputTokens:500 }
+                    })
+                });
+                removeTypingIndicator();
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Gemini API Error:", errorData);
+                    throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                const explanation = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't generate a simple explanation at this time.";
+                addMessageToChat('ai', `<strong>Simple Explanation (AI):</strong><br>${explanation.replace(/\n/g, '<br>')}`, true);
+            } catch (error) {
+                console.error("Error getting simple explanation:", error);
+                removeTypingIndicator();
+                addMessageToChat('ai', `An error occurred while generating the explanation: ${error.message}`);
+            }
+        }
+
+        // --- 3D Protein Viewer Functionality ---
+        function renderProteinWith3Dmol(pdbDataToRender, currentAlphafoldId, currentProteinName, modelSourceInfo) {
+            try {
+                if (proteinViewerInstance) {
+                    proteinViewerInstance.clear(); // Clear previous model from viewer
+                }
+                proteinViewerContainer.innerHTML = ''; // Clear container in case of previous errors
+                proteinViewerInstance = $3Dmol.createViewer(proteinViewerContainer, {
+                    defaultcolors: $3Dmol.rasmolElementColors
+                });
+                proteinViewerInstance.addModel(pdbDataToRender, "pdb");
+                proteinViewerInstance.setStyle({}, { cartoon: { color: 'spectrum' } });
+                proteinViewerInstance.zoomTo();
+                proteinViewerInstance.render();
+                
+                proteinViewerInstance.setClickable({}, true, (atom, viewer, event, container) => {
+                    if (atom) {
+                        viewer.removeAllLabels(); 
+                        let labelText = `${atom.resn}${atom.resi} ${atom.atom}`;
+                        if (atom.elem) labelText += ` (${atom.elem})`;
+
+                        viewer.addLabel(labelText, {
+                            position: atom,
+                            backgroundColor: '0x333333',
+                            backgroundOpacity: 0.8,
+                            fontColor: '0xffffff',
+                            borderColor: '0xbbbbbb',
+                            borderThickness: 0.5,
+                            fontSize: 12,
+                            inFront: true 
+                        });
+                        viewer.render();
+                        proteinViewerStatus.textContent = `Selected: ${labelText}`;
+                    }
+                });
+
+                setTimeout(() => { 
+                    if (proteinViewerInstance) proteinViewerInstance.resize();
+                }, 100);
+                proteinViewerStatus.textContent = `Displaying structure for ${currentProteinName}. Click on atoms for details. (Model: ${modelSourceInfo})`;
+            } catch (e) {
+                proteinViewerStatus.textContent = 'Error rendering 3D structure.';
+                console.error("3Dmol.js error:", e);
+                if(proteinViewerInstance) proteinViewerInstance.clear();
+                proteinViewerContainer.innerHTML = '<p style="color:red; text-align:center; padding-top: 20px;">Error rendering 3D structure.</p>';
+            }
+        }
+        
+        async function showProteinStructure(alphafoldId, proteinName) {
+            if (!proteinViewerModal || !proteinViewerContainer || !proteinViewerStatus || !proteinViewerTitle) return;
+
+            proteinViewerTitle.textContent = `3D Structure: ${proteinName}`;
+            proteinViewerContainer.innerHTML = ''; 
+            showModal(proteinViewerModal);
+            fullscreenProteinViewerBtn.textContent = 'Fullscreen'; 
+
+            if (pdbDataCache[alphafoldId]) {
+                proteinViewerStatus.textContent = 'Loading structure from cache...';
+                renderProteinWith3Dmol(pdbDataCache[alphafoldId], alphafoldId, proteinName, `cached model for ${alphafoldId}`);
+                return; 
+            }
+
+            proteinViewerStatus.textContent = 'Fetching PDB data...';
+            const pdbVersionsToTry = ['v4', 'v3', 'v2', 'v1'];
+            let pdbData = null;
+            let pdbUrlUsed = '';
+
+            for (const version of pdbVersionsToTry) {
+                const currentPdbUrl = `${ALPHA_FOLD_PDB_BASE_URL}AF-${alphafoldId}-F1-model_${version}.pdb`;
+                try {
+                    const response = await fetch(currentPdbUrl);
+                    if (response.ok) {
+                        pdbData = await response.text();
+                        pdbUrlUsed = currentPdbUrl;
+                        proteinViewerStatus.textContent = `Loading structure from AlphaFold model ${version}...`;
+                        break; 
+                    }
+                } catch (fetchError) {
+                    console.warn(`Could not fetch PDB ${currentPdbUrl}:`, fetchError);
+                }
+            }
+            
+            if (!pdbData) { 
+                const rcsbUrl = `https://files.rcsb.org/download/${alphafoldId}.pdb`;
+                try {
+                    proteinViewerStatus.textContent = `Trying RCSB for ${alphafoldId}.pdb...`;
+                    const response = await fetch(rcsbUrl);
+                    if (response.ok) {
+                        pdbData = await response.text();
+                        pdbUrlUsed = rcsbUrl;
+                        proteinViewerStatus.textContent = `Loading structure from RCSB...`;
+                    } else {
+                        proteinViewerStatus.textContent = `Could not find PDB data for ${alphafoldId} on AlphaFold DB or RCSB.`;
+                        console.error(`Failed to fetch PDB from RCSB: ${response.statusText}`);
+                        proteinViewerContainer.innerHTML = `<p style="color:orange; text-align:center; padding-top: 20px;">Could not find PDB data for ${alphafoldId}.</p>`;
+                        return;
+                    }
+                } catch (error) {
+                    proteinViewerStatus.textContent = `Error fetching PDB data for ${alphafoldId}.`;
+                    console.error("Error fetching PDB data:", error);
+                    proteinViewerContainer.innerHTML = `<p style="color:red; text-align:center; padding-top: 20px;">Error fetching PDB data.</p>`;
+                    return;
+                }
+            }
+
+            if (pdbData) {
+                pdbDataCache[alphafoldId] = pdbData; 
+                renderProteinWith3Dmol(pdbData, alphafoldId, proteinName, pdbUrlUsed.split('/').pop());
+            } else {
+                proteinViewerStatus.textContent = `Could not load PDB data for ${alphafoldId}.`;
+                 proteinViewerContainer.innerHTML = `<p style="color:orange; text-align:center; padding-top: 20px;">Could not load PDB data for ${alphafoldId}.</p>`;
+            }
+        }
+
+        if(fullscreenProteinViewerBtn) {
+            fullscreenProteinViewerBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    proteinViewerContainer.requestFullscreen().catch(err => {
+                        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                        proteinViewerStatus.textContent = "Fullscreen not available or denied.";
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            });
+        }
+        
+        document.addEventListener('fullscreenchange', () => {
+            const fsCloseBtn = proteinViewerContainer.querySelector('.fullscreen-close-btn');
+            if (document.fullscreenElement === proteinViewerContainer) {
+                if (!fsCloseBtn) {
+                    const newFsCloseBtn = document.createElement('button');
+                    newFsCloseBtn.innerHTML = '&times;';
+                    newFsCloseBtn.className = 'fullscreen-close-btn';
+                    newFsCloseBtn.setAttribute('aria-label', 'Exit fullscreen');
+                    newFsCloseBtn.onclick = () => {
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen();
+                        }
+                    };
+                    proteinViewerContainer.appendChild(newFsCloseBtn);
+                }
+                if (fullscreenProteinViewerBtn) fullscreenProteinViewerBtn.textContent = 'Exit Fullscreen';
+            } else {
+                if (fsCloseBtn) {
+                    fsCloseBtn.remove();
+                }
+                if (fullscreenProteinViewerBtn) fullscreenProteinViewerBtn.textContent = 'Fullscreen';
+            }
+            
+            if (proteinViewerInstance) {
+                setTimeout(() => {
+                    proteinViewerInstance.resize();
+                }, 100); 
+            }
+        });
+
+        // --- Chat Session Management ---
+        function getAllSessionsForCurrentUser() {
+            if (!currentUser) return [];
+            const sessionsStr = localStorage.getItem(`allUserSessions_${currentUser}`);
+            return sessionsStr ? JSON.parse(sessionsStr) : [];
+        }
+
+        function saveCurrentSessionMessages() {
+            if (!currentUser || !currentChatSessionId) return;
+            const allSessions = getAllSessionsForCurrentUser();
+            const sessionIndex = allSessions.findIndex(s => s.sessionId === currentChatSessionId);
+
+            if (sessionIndex > -1) {
+                allSessions[sessionIndex].messages = [...currentChatMessages]; 
+                allSessions[sessionIndex].lastActivity = Date.now();
+            } else {
+                // This case should ideally be handled by session creation logic in handleSendMessage or startNewChat
+                console.warn("Attempted to save messages for a non-existent session ID:", currentChatSessionId);
+                // Optionally, create the session here if it's truly missing
+                const firstUserMessage = currentChatMessages.find(m => m.sender === 'user');
+                const sessionNameQuery = firstUserMessage ? firstUserMessage.message : "New Chat";
+                const sessionName = `Chat: ${sessionNameQuery.substring(0,20)}... (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
+                
+                allSessions.push({
+                    sessionId: currentChatSessionId,
+                    sessionName: sessionName,
+                    lastActivity: Date.now(),
+                    messages: [...currentChatMessages]
+                });
+            }
+            localStorage.setItem(`allUserSessions_${currentUser}`, JSON.stringify(allSessions));
+            populateChatHistorySidebar(); 
+        }
+        
+        function startNewChat() {
+            const oldSessionId = currentChatSessionId;
+            currentChatSessionId = Date.now().toString(); // Generate a new ID for the new chat
+            
+            if (currentUser) {
+                localStorage.setItem(`currentSessionId_${currentUser}`, currentChatSessionId); 
+            }
+            currentChatMessages = [];
+            messageList.innerHTML = '';
+            addMessageToChat('ai', "New chat started. Enter a gene or protein name.", false); 
+            
+            // Create the new session in storage immediately
+            const allSessions = getAllSessionsForCurrentUser();
+            const newSession = {
+                sessionId: currentChatSessionId,
+                sessionName: `New Chat (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
+                lastActivity: Date.now(),
+                messages: [...currentChatMessages] // Store the initial "New chat started" message
+            };
+            allSessions.push(newSession);
+            localStorage.setItem(`allUserSessions_${currentUser}`, JSON.stringify(allSessions));
+
+            document.querySelectorAll('.sidebar-menu li, .sidebar-list li').forEach(li => li.classList.remove('active', 'active-session'));
+            if(newChatBtn) newChatBtn.classList.add('active');
+            
+            populateChatHistorySidebar(); // This will now highlight the new "New Chat"
+        }
+
+        function loadSession(sessionIdToLoad) {
+            if (!currentUser) return;
+            const allSessions = getAllSessionsForCurrentUser();
+            const sessionToLoad = allSessions.find(s => s.sessionId === sessionIdToLoad);
+
+            if (sessionToLoad) {
+                currentChatSessionId = sessionIdToLoad;
+                localStorage.setItem(`currentSessionId_${currentUser}`, currentChatSessionId);
+                currentChatMessages = [...sessionToLoad.messages]; 
+
+                messageList.innerHTML = ''; 
+                currentChatMessages.forEach(msg => _renderMessageToUI(msg.sender, msg.message, msg.isHTML, msg.timestamp, msg.alphafoldId, msg.proteinName));
+                
+                populateChatHistorySidebar(); 
+                document.querySelectorAll('.sidebar-menu li').forEach(li => li.classList.remove('active'));
+                if(historyToggleBtn && chatHistoryPanel.classList.contains('hidden')) {
+                    // If loading from history list, ensure history panel is visible and new chat is not active
+                    newChatBtn.classList.remove('active');
+                } else if (!chatHistoryPanel.classList.contains('hidden')) {
+                     newChatBtn.classList.remove('active');
+                }
+
+            } else {
+                console.warn(`Session ${sessionIdToLoad} not found for user ${currentUser}. Starting new chat.`);
+                startNewChat();
+            }
+        }
+
+        function loadCurrentOrDefaultSession() {
+            if (!currentUser) return;
+            messageList.innerHTML = ''; 
+            const savedSessionId = localStorage.getItem(`currentSessionId_${currentUser}`);
+            const allSessions = getAllSessionsForCurrentUser();
+
+            if (savedSessionId) {
+                const sessionExists = allSessions.some(s => s.sessionId === savedSessionId);
+                if (sessionExists) {
+                    loadSession(savedSessionId);
+                    return;
+                } else {
+                     localStorage.removeItem(`currentSessionId_${currentUser}`); 
+                }
+            }
+            
+            if (allSessions.length > 0) {
+                allSessions.sort((a, b) => b.lastActivity - a.lastActivity); 
+                loadSession(allSessions[0].sessionId);
+            } else {
+                startNewChat(); // This will create and save the first session
+            }
+        }
+
+        function populateChatHistorySidebar() {
+            if (!currentUser || !chatHistoryList) return;
+            const allSessions = getAllSessionsForCurrentUser();
+            allSessions.sort((a, b) => b.lastActivity - a.lastActivity); 
+
+            chatHistoryList.innerHTML = ''; 
+            if (allSessions.length === 0) {
+                chatHistoryList.innerHTML = '<li style="opacity: 0.7; cursor: default;">No chat history yet.</li>';
+            } else {
+                allSessions.forEach(session => {
+                    const li = document.createElement('li');
+                    li.textContent = session.sessionName || `Chat from ${new Date(session.lastActivity).toLocaleDateString()}`;
+                    li.title = session.sessionName || `Chat from ${new Date(session.lastActivity).toLocaleString()}`;
+                    li.dataset.sessionId = session.sessionId;
+                    if (session.sessionId === currentChatSessionId) {
+                        li.classList.add('active-session');
+                    }
+                    li.addEventListener('click', () => {
+                        loadSession(session.sessionId);
+                         if (window.innerWidth <= 768 && chatSidebar.classList.contains('open')) {
+                            chatSidebar.classList.remove('open'); 
+                        }
+                    });
+                    chatHistoryList.appendChild(li);
+                });
+            }
+        }
+
+        // --- Event Listeners ---
+        if(sendMessageBtn) sendMessageBtn.addEventListener('click', handleSendMessage);
+        if(messageInput) messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { 
+                e.preventDefault(); 
+                handleSendMessage();
+            }
+        });
+
+        if(menuToggleBtn) menuToggleBtn.addEventListener('click', () => {
+            chatSidebar.classList.toggle('open');
+        });
+        
+        if(newChatBtn) newChatBtn.addEventListener('click', () => {
+            startNewChat();
+            if (window.innerWidth <= 768 && chatSidebar.classList.contains('open')) {
+                chatSidebar.classList.remove('open');
+            }
+            chatHistoryPanel.classList.add('hidden'); 
+            historyToggleBtn.classList.remove('active'); 
+            newChatBtn.classList.add('active'); 
+        });
+
+        if(historyToggleBtn) historyToggleBtn.addEventListener('click', () => {
+            chatHistoryPanel.classList.toggle('hidden');
+            historyToggleBtn.classList.toggle('active'); 
+            if(!chatHistoryPanel.classList.contains('hidden')) { // If opening history
+                if(newChatBtn) newChatBtn.classList.remove('active');
+            } else { // If closing history, and no session is active, make "New Chat" active
+                const activeSessionLi = chatHistoryList.querySelector('.active-session');
+                if (!activeSessionLi && newChatBtn) newChatBtn.classList.add('active');
+            }
+        });
+        
+        window.addEventListener('resize', () => {
+            if (chatInterface.classList.contains('hidden')) { 
+                menuToggleBtn.style.display = 'none';
+            } else { 
+                if (window.innerWidth <= 768) {
+                    menuToggleBtn.style.display = 'flex';
+                } else {
+                    menuToggleBtn.style.display = 'none';
+                    chatSidebar.classList.remove('open'); 
+                }
+            }
+            onWindowResizeDna(); 
+            if (proteinViewerInstance && proteinViewerModal.classList.contains('active') && !document.fullscreenElement) {
+                setTimeout(() => proteinViewerInstance.resize(), 100); 
+            }
+        });
+
+        // --- Initialization ---
+        function initializeApp() {
+            setInitialTheme(); 
+            populateExamples();
+            checkLoggedInUser(); // This will either show landing or auto-login to chat
+            
+            // Only init these if landing page is visible
+            if (!landingPage.classList.contains('hidden')) { 
+                revealSections();
+                if (typeof initDnaAnimation === 'function' && !dnaRenderer) {
+                     initDnaAnimation();
+                }
+            }
+            // Correctly set menu button display based on current view
+            if (chatInterface.classList.contains('hidden')) {
+                 menuToggleBtn.style.display = 'none';
+            } else {
+                 if (window.innerWidth <= 768) menuToggleBtn.style.display = 'flex';
+                 else menuToggleBtn.style.display = 'none';
+            }
+        }
+
+        initializeApp();
+
+    </script>
+</body>
+</html>
